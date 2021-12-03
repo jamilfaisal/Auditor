@@ -1,13 +1,15 @@
 import requests
 import os
+from config import settings
 
 
 class CourseDataCollector:
 
     url = "https://timetable.iit.artsci.utoronto.ca/api/20219/courses"
-    year = "2021-2022"
+    year = settings.year
 
-    def __init__(self, org=None, code=None, section=None, studyyear=None, daytime=None, weekday=None, prof=None, breadth=None, waitlist=None, available=None, fyfcourse=None, title=None):
+    def __init__(self, org=None, code=None, section=None, studyyear=None, daytime=None, weekday=None, prof=None,
+                 breadth=None, waitlist=None, available=None, fyfcourse=None, title=None):
         self.org = org
         self.code = code
         self.section = section
