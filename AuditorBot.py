@@ -1,46 +1,58 @@
 import discord
-from discord.ext import commands
 import logging
+import pandas as pd
+from CourseDataCollector import CourseDataCollector
+from utils import get_relevant_time_information, filter_database, filter_courses
 
 logging.basicConfig(level=logging.INFO)
 
+
+class AuditorBot(discord.Client):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # TODO: Make the following line dynamic
+        self.df = pd.read_json('course_data/2021-2022.json')
+
+    async def on_ready(self):
+        print("Logged on as {}".format(self.user))
+
+    @staticmethod
+    async def on_guild_join(guild):
+        g_channel = discord.utils.find(lambda x: x.name == 'general', guild.text_channels)
+        if g_channel and g_channel.permissions_for(guild.me).send_messages:
+            await g_channel.send("Hello!")
+
+    async def on_message(self, message):
+        if message.author.id == self.user.id:
+            return
+
+        if message.content.startswith('!check'):
+            await self.check(message)
+        elif message.content.startswith("!update"):
+            await self.update(message)
+
+    @staticmethod
+    async def update(message):
+        course_data = CourseDataCollector()
+        course_data.get_data()
+        await message.channel.send("Update Done!")
+
+    async def check(self, message):
+        # 1. Get information
+        weekday, section, hour = get_relevant_time_information()
+        # 2. Filter all valid rows
+        filtered_df = filter_database(self.df, weekday, section.value, hour)
+        # 3. Instantiate database rows as Course objects
+        courses = filter_courses(filtered_df, weekday, hour)
+        # 4. Send message to discord channel with course information
+        if len(courses) == 0:
+            await message.channel.send("No lectures found...")
+        for course in courses:
+            await message.channel.send(course.format_course())
+
+
+# TODO: Fill Bot description
 bot_description = ""
 intents = discord.Intents.default()
-AuditorBot = commands.Bot(command_prefix='!', description=bot_description, intents=intents)
-
-
-@AuditorBot.event
-async def on_ready():
-    print("Logged on as {}".format(AuditorBot.user))
-
-
-@AuditorBot.event
-async def on_guild_join(guild):
-    g_channel = discord.utils.find(lambda x: x.name == 'general', guild.text_channels)
-    if g_channel and g_channel.permissions_for(guild.me).send_messages:
-        await g_channel.send("Hello!")
-
-
-# @AuditorBot.command()
-# async def athan(ctx: commands.Context, address: str):
-#     try:
-#         city, country = await get_location(address)
-#     except ValueError as e:
-#         await ctx.send(str(e))
-#         return
-#     url = "http://api.aladhan.com/v1/timingsByCity?city={}&country={}&method=2".format(city, country)
-#     session = aiohttp.ClientSession()
-#     while True:
-#         try:
-#             async with session.get(url) as r:
-#                 if r.status == 200:
-#                     js = await r.json()
-#                     await ctx.send(format_athan(js, city, country))
-#         except aiohttp.ServerDisconnectedError as e:
-#             print(e)
-#             continue
-#         except aiohttp.ClientOSError as e:
-#             print(e)
-#             continue
-#         break
-#     await session.close()
+auditorBot = AuditorBot(command_prefix='!', description=bot_description, intents=intents)
