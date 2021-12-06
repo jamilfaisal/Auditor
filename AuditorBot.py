@@ -46,6 +46,10 @@ class AuditorBot(discord.Client):
         # 3. Instantiate database rows as Course objects
         courses = filter_courses(filtered_df, weekday, hour)
         # 4. Send message to discord channel with course information
+        await self.send_course_information(message, courses)
+
+    @staticmethod
+    async def send_course_information(message, courses):
         if len(courses) == 0:
             await message.channel.send("No lectures found...")
         for course in courses:
